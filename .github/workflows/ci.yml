@@ -2,24 +2,26 @@ name: GKI Kernel Module Build
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Output directory of GKI, for example: android13-5.15"
-        required: true
-        type: string
-      tag:
-        description: "Branch name of common kernel manifest, for example: android13-5.15"
-        required: true
-        type: string
 
 jobs:
   build:
-    name: Build Kernel for ${{ inputs.version }}
+    name: Build Kernel for ${{ matrix.tag }}
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
+
+    strategy:
+      matrix:
+        tag:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
 
     steps:
       - name: Maximize build space
@@ -31,6 +33,12 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
+        
+      - name: Install Build Tools
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: bc bison build-essential flex libelf-dev binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gzip ccache
+          version: 1.0
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -41,7 +49,7 @@ jobs:
         run: |
           sudo apt-get install -y repo
           mkdir android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-${{ inputs.tag }} --repo-rev=v2.16
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-${{ matrix.tag }} --repo-rev=v2.16
           repo sync -c -j$(nproc) --no-tags
           df -h
 
@@ -49,7 +57,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: gki-kernel-${{ inputs.version }}-cache
+          key: gki-kernel-${{ matrix.tag }}-cache
 
       - name: Build Kernel
         working-directory: android-kernel
@@ -58,10 +66,11 @@ jobs:
             LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
           else
             tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+          fi
 
       - name: Prepare Artifacts
         run: |
-          OUTDIR=android-kernel/out/${{ inputs.version }}/dist
+          OUTDIR=android-kernel/out/${{ matrix.tag }}/dist
           if [ ! -e $OUTDIR ]; then
             OUTDIR=android-kernel/dist
           fi
@@ -73,5 +82,5 @@ jobs:
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Image-${{ inputs.version }}
+          name: Image-${{ matrix.tag }}
           path: ./output/*
