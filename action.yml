@@ -75,8 +75,7 @@ runs:
         fi
         mkdir output
         ls -al $OUTDIR/
-        cp $OUTDIR/Image ./output/
-        cp $OUTDIR/Image.lz4 ./output/
+        cp $OUTDIR/*Image* ./output/
 
     - name: Upload Kernel Artifacts
       uses: actions/upload-artifact@v4
