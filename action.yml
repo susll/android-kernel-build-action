@@ -9,6 +9,10 @@ inputs:
   tag:
     description: 'Specify the Android kernel version and tag to build for (e.g., common-android12-5.10).'
     required: true
+  arch:
+    description: 'Specify the architecture to build for (e.g., aarch64 or x86_64).'
+    required: true
+    default: 'aarch64'
 
 runs:
   using: "composite"
@@ -48,10 +52,18 @@ runs:
       shell: bash
       working-directory: android-kernel
       run: |
-        if [ -e build/build.sh ]; then
-          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
-        else
-          tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+        if [ "${{ inputs.arch }}" = "aarch64" ]; then
+          if [ -e build/build.sh ]; then
+            LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
+          else
+            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+          fi
+        elif [ "${{ inputs.arch }}" = "x86_64" ]; then
+          if [ -e build/build.sh ]; then
+            LTO=thin BUILD_CONFIG=common/build.config.gki.x86_64 build/build.sh CC="/usr/bin/ccache clang"
+          else
+            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_x86_64_dist -- --dist_dir=dist
+          fi
         fi
 
     - name: Prepare Artifacts
@@ -69,5 +81,5 @@ runs:
     - name: Upload Kernel Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Image-${{ inputs.tag }}
+        name: Image-${{ inputs.tag }}-${{ inputs.arch }}
         path: ./output/*

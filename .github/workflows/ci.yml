@@ -17,13 +17,15 @@ jobs:
             - android14-5.15
             - android14-6.1
             - android15-6.6
-            
+          arch:
+            - aarch64
+            - x86_64
       steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
   
         - name: Run GKI Kernel Build Action
-          uses: ./
+          uses: feicong/android-kernel-build-action@main
           with:
             tag: ${{ matrix.tag }}
-  
+            arch: ${{ matrix.arch }}
