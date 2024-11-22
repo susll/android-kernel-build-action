@@ -1,0 +1,73 @@
+name: 'GKI Kernel Module Build Action'
+description: 'An action to build Android GKI kernel modules.'
+
+branding:
+  icon: 'activity'
+  color: 'blue'
+
+inputs:
+  tag:
+    description: 'Specify the Android kernel version and tag to build for (e.g., common-android12-5.10).'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Maximize build space
+      uses: easimon/maximize-build-space@master
+      with:
+        root-reserve-mb: 8192
+        temp-reserve-mb: 2048
+        remove-dotnet: 'true'
+        remove-android: 'true'
+        remove-haskell: 'true'
+        remove-codeql: 'true'
+    
+    - name: Install Build Tools
+      uses: awalsh128/cache-apt-pkgs-action@v1
+      with:
+        packages: binutils git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libx11-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python3 libelf-dev binutils-aarch64-linux-gnu gcc gzip
+        version: 1.0
+
+    - name: Setup Android Kernel Source Code
+      shell: bash
+      run: |
+        sudo apt-get install -y repo
+        mkdir android-kernel && cd android-kernel
+        repo init -u https://android.googlesource.com/kernel/manifest -b common-${{ inputs.tag }} --repo-rev=v2.16
+        repo sync -c -j$(nproc) --no-tags
+        df -h
+
+    - name: Setup CCache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache-${{ inputs.tag }}
+        key: gki-kernel-${{ inputs.tag }}-cache
+
+    - name: Build Kernel
+      shell: bash
+      working-directory: android-kernel
+      run: |
+        if [ -e build/build.sh ]; then
+          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
+        else
+          tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+        fi
+
+    - name: Prepare Artifacts
+      shell: bash
+      run: |
+        OUTDIR=android-kernel/out/${{ inputs.tag }}/dist
+        if [ ! -e $OUTDIR ]; then
+          OUTDIR=android-kernel/dist
+        fi
+        mkdir output
+        ls -al $OUTDIR/
+        cp $OUTDIR/Image ./output/
+        cp $OUTDIR/Image.lz4 ./output/
+
+    - name: Upload Kernel Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Image-${{ inputs.tag }}
+        path: ./output/*
