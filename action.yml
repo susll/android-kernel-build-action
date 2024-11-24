@@ -27,20 +27,20 @@ runs:
       shell: bash
       run: |
         VALID_TAGS=("android12-5.10" "android13-5.10" "android13-5.15" "android14-5.15" "android14-6.1" "android15-6.6" "android16-6.12")
-        if [[ ! " ${VALID_TAGS[@]} " =~ " ${inputs.tag} " ]]; then
-          echo "Invalid tag specified: ${inputs.tag}. Must be one of: ${VALID_TAGS[@]}"
+        if [[ ! " ${VALID_TAGS[@]} " =~ " ${{ inputs.tag }} " ]]; then
+          echo "Invalid tag specified: ${{ inputs.tag }}. Must be one of: ${VALID_TAGS[@]}"
           exit 1
         fi
-        if [ ! -e ${{ inputs.module-path }} ]; then
-          echo invailed module-path: ${{ inputs.module-path }}
+        if [ ! -e "${{ inputs.module-path }}" ]; then
+          echo "Invalid module-path: ${{ inputs.module-path }}"
           exit 2
         fi
-        if [ ! -e ${{ inputs.module-path }}/Makefile ]; then
-          echo ${{ inputs.module-path }}/Makefile do not exists.
+        if [ ! -e "${{ inputs.module-path }}/Makefile" ]; then
+          echo "${{ inputs.module-path }}/Makefile does not exist."
           exit 3
         fi
-        if [ ! -e ${{ inputs.module-path }}/${{ inputs.module-name }}.c ]; then
-          echo ${{ inputs.module-path }}/${{ inputs.module-name }}.c do not exists.
+        if [ ! -e "${{ inputs.module-path }}/${{ inputs.module-name }}.c" ]; then
+          echo "${{ inputs.module-path }}/${{ inputs.module-name }}.c does not exist."
           exit 4
         fi
 
