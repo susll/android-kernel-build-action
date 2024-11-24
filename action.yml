@@ -7,14 +7,15 @@ branding:
 
 inputs:
   tag:
-    description: 'Specify the Android kernel version and tag to build for (e.g., common-android12-5.10).'
+    description: 'Specify the Android kernel version and tag to build for (e.g., android13-5.15).'
+    default: 'android13-5.15'
     required: true
   arch:
     description: 'Specify the architecture to build for (e.g., aarch64 or x86_64).'
     required: true
     default: 'aarch64'
   module-path:
-    description: 'Specify the path to the kernel module driver directory.'
+    description: 'Specify the name of the kernel module artifact.'
     required: true
   module-name:
     description: 'Specify the name of the kernel module.'
@@ -23,6 +24,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Download
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.module-path }}
+        path: ${{ inputs.module-name }}
+
     - name: Validate Input
       shell: bash
       run: |
@@ -31,16 +38,17 @@ runs:
           echo "Invalid tag specified: ${{ inputs.tag }}. Must be one of: ${VALID_TAGS[@]}"
           exit 1
         fi
-        if [ ! -d "${{ inputs.module-path }}" ]; then
-          echo "Invalid module-path: Directory ${{ inputs.module-path }} does not exist."
+        if [ ! -d "${{ inputs.module-name }}" ]; then
+          echo "Invalid module-name: Directory ${{ inputs.module-name }} does not exist."
           exit 2
         fi
-        if [ ! -f "${{ inputs.module-path }}/Makefile" ]; then
-          echo "${{ inputs.module-path }}/Makefile does not exist."
+        ls -l ${{ inputs.module-name }}
+        if [ ! -f "${{ inputs.module-name }}/Makefile" ]; then
+          echo "${{ inputs.module-name }}/Makefile does not exist."
           exit 3
         fi
-        if [ ! -f "${{ inputs.module-path }}/${{ inputs.module-name }}.c" ]; then
-          echo "Error: ${inputs.module-path}/${inputs.module-name}.c does not exist."
+        if [ ! -f "${{ inputs.module-name }}/${{ inputs.module-name }}.c" ]; then
+          echo "Error: ${inputs.module-name}/${inputs.module-name}.c does not exist."
           exit 4
         fi
 
@@ -82,12 +90,12 @@ runs:
         GKI_ROOT=$GITHUB_WORKSPACE/android-kernel
         echo "[+] GKI_ROOT: $GKI_ROOT"
         echo "[+] Copy driver to $GKI_ROOT/common/drivers"
-        ln -sf $GITHUB_WORKSPACE/${{ inputs.module-path }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        ln -sf $GITHUB_WORKSPACE/${{ inputs.module-name }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
         echo "[+] Add driver to Makefile"
         DRIVER_MAKEFILE=$GKI_ROOT/common/drivers/Makefile
         DRIVER_KCONFIG=$GKI_ROOT/common/drivers/Kconfig
         grep -q "${{ inputs.module-name }}" "$DRIVER_MAKEFILE" || printf "\nobj-m += ${{ inputs.module-name }}/\n" >> "$DRIVER_MAKEFILE"
-        if [ -f $GITHUB_WORKSPACE/${{ inputs.module-path }}/Kconfig ]; then
+        if [ -f $GITHUB_WORKSPACE/${{ inputs.module-name }}/Kconfig ]; then
           grep -q "${{ inputs.module-name }}" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\\source \"drivers/${{ inputs.module-name }}/Kconfig\"" "$DRIVER_KCONFIG"
         fi
         # Ensure module Makefile exists

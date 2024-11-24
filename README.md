@@ -1,6 +1,6 @@
 # Android Kernel Build Action
 
-This GitHub Action is designed to automate the building of Android kernel modules out of the kernel source. It supports both aarch64 and x86_64 architectures, and can build kernels for different Android versions (GKI 2.0).
+This GitHub Action is designed to automate the building of Android kernel modules out of the kernel source. It supports both aarch64 and x86_64 architectures, and can build kernels for different Android versions (GKI 2.0/3.0).
 
 ## Overview
 
@@ -28,20 +28,6 @@ The Android Kernel Build Action allows users to easily build kernels for Android
 
 ### Required Inputs
 
-- kernel-url:
-
-    - Description: URL of the kernel source to be used.
-
-    - Required: true
-
-- config:
-
-    - Description: Kernel configuration to be used for the build.
-
-    - Required: true
-
-    - Default: defconfig
-
 - arch:
 
     - Description: Target architecture for the kernel build.
@@ -50,24 +36,25 @@ The Android Kernel Build Action allows users to easily build kernels for Android
 
     - Default: arm64
 
-- android-version:
+- tag:
 
-    - Description: Android version for which the kernel is being built.
+    - Description: Android GKI version.
 
     - Required: true
 
-    - Default: 12
+    - Default: 'android13-5.15'
 
-### Optional Inputs
+- module-name:
 
-- depth:
+    - Description: module name of the ko.
 
-    - Description: Depth for the kernel source git clone.
+    - Required: true
 
-    - Required: false
+- module-path
 
-    - Default: 1
+    - Description: module name of the github action artifact.
 
+    - Required: true
 
 ## Usage Example
 
@@ -110,19 +97,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Kernel Build
-        uses: feicong/android-kernel-build-action@main
+      - name: Upload LKM Source Code
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
+          path: .github/hello-ko
+
+      - name: Run GKI Kernel Build Action
+        uses: ./
         with:
           arch: ${{ matrix.arch }}
           tag: ${{ matrix.tag }}
-          module-path: .github/hello-ko
           module-name: hello-ko
+          module-path: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
 ```
-
-### Explanation of Parameters
-
-arch: Specifies the architecture for which the kernel should be built (aarch64 or x86_64).
 
 ### Outputs
 
-The action will upload the compiled kernel.
+The action will upload the compiled kernel and module ko file.

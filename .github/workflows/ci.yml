@@ -25,10 +25,16 @@ jobs:
         - name: Checkout Repository
           uses: actions/checkout@v4
   
+        - name: Upload LKM Source Code
+          uses: actions/upload-artifact@v4
+          with:
+            name: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
+            path: .github/hello-ko
+
         - name: Run GKI Kernel Build Action
           uses: ./
           with:
-            tag: ${{ matrix.tag }}
             arch: ${{ matrix.arch }}
-            module-path: .github/hello-ko
+            tag: ${{ matrix.tag }}
             module-name: hello-ko
+            module-path: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
