@@ -48,6 +48,63 @@ runs:
         path: ~/.ccache-${{ inputs.tag }}
         key: gki-kernel-${{ inputs.tag }}-cache
 
+    - name: Setup Kernel Module
+      shell: bash
+      run: |
+        cd $GITHUB_WORKSPACE/android-kernel
+        echo "[+] Kernel Module setup"
+        GKI_ROOT=$(pwd)
+        echo "[+] GKI_ROOT: $GKI_ROOT"
+        echo "[+] Copy driver to $GKI_ROOT/common/drivers"
+        cp -rf $GITHUB_WORKSPACE/../.github/hello-ko $GKI_ROOT/common/drivers/hello-ko
+        echo "[+] Add driver to Makefile"
+        DRIVER_MAKEFILE=$GKI_ROOT/common/drivers/Makefile
+        DRIVER_KCONFIG=$GKI_ROOT/common/drivers/Kconfig
+        grep -q "hello-ko" "$DRIVER_MAKEFILE" || printf "\nobj-m += hello-ko/\n" >> "$DRIVER_MAKEFILE"
+        grep -q "hello-ko" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\\source \"drivers/hello-ko/Kconfig\"" "$DRIVER_KCONFIG"
+        # Ensure hello-ko Makefile exists
+        if [ ! -f $GKI_ROOT/common/drivers/hello-ko/Makefile ]; then
+          echo "obj-m += hello-ko.o" > $GKI_ROOT/common/drivers/hello-ko/Makefile
+        fi
+
+    - name: Setup for LKM
+      shell: bash
+      working-directory: android-kernel
+      run: |
+        pip install ast-grep-cli
+        sudo apt-get install llvm-15 -y
+        ast-grep -U -p '$$$ check_exports($$$) {$$$}' -r '' common/scripts/mod/modpost.c
+        ast-grep -U -p 'check_exports($$$);' -r '' common/scripts/mod/modpost.c
+        echo "drivers/hello-ko/hello-ko.ko" >> common/android/gki_aarch64_modules
+
+        # bazel build, android14-5.15, android14-6.1 use bazel
+        if [ ! -e build/build.sh ]; then
+          sed -i 's/needs unknown symbol/Dont abort when unknown symbol/g' build/kernel/*.sh || echo "No unknown symbol scripts found"
+          if [ -e common/modules.bzl ]; then
+            sed -i 's/_COMMON_GKI_MODULES_LIST = \[/_COMMON_GKI_MODULES_LIST = \[ "drivers\/hello-ko\/hello-ko.ko",/g' common/modules.bzl
+          fi
+        else
+          TARGET_FILE="build/kernel/build.sh"
+          if [ ! -e "$TARGET_FILE" ]; then
+            TARGET_FILE="build/build.sh"
+          fi
+          sed -i 's/needs unknown symbol/Dont abort when unknown symbol/g' $TARGET_FILE || echo "No unknown symbol in $TARGET_FILE"
+          sed -i 's/if ! diff -u "\${KERNEL_DIR}\/\${MODULES_ORDER}" "\${OUT_DIR}\/modules\.order"; then/if false; then/g' $TARGET_FILE
+          sed -i 's@${ROOT_DIR}/build/abi/compare_to_symbol_list@echo@g' $TARGET_FILE
+          sed -i 's/needs unknown symbol/Dont abort when unknown symbol/g' build/kernel/*.sh || echo "No unknown symbol scripts found"
+        fi
+
+    - name: Make working directory clean to avoid dirty
+      shell: bash
+      working-directory: android-kernel
+      run: |
+        repo status
+        rm common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+        git config --global user.email "bot@github.actions.org"
+        git config --global user.name "github.actions"
+        cd common/ && git add -A && git commit -a -m "Add Kernel Module"
+        repo status
+
     - name: Build Kernel
       shell: bash
       working-directory: android-kernel
@@ -92,6 +149,7 @@ runs:
         mkdir output
         ls -al $OUTDIR/
         cp $OUTDIR/*Image* ./output/
+        cp $OUTDIR/hello-ko.ko ./output/${{ inputs.tag }}_hello-ko.ko
 
     - name: Upload Kernel Artifacts
       uses: actions/upload-artifact@v4
