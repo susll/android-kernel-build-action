@@ -102,6 +102,7 @@ jobs:
           "android14-5.15",
           "android14-6.1",
           "android15-6.6",
+          "android16-6.12",
         ]
     name: Build Android Kernel (${{ matrix.arch }} - ${{ matrix.tag }})
 
@@ -114,6 +115,8 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           tag: ${{ matrix.tag }}
+          module-path: .github/hello-ko
+          module-name: hello-ko
 ```
 
 ### Explanation of Parameters
