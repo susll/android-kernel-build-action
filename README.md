@@ -22,6 +22,8 @@ The Android Kernel Build Action allows users to easily build kernels for Android
 
 - Android 15 (Kernel: 6.6)
 
+- Android 16 (Kernel: 6.12)
+
 ## Inputs
 
 ### Required Inputs

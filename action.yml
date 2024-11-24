@@ -52,26 +52,42 @@ runs:
       shell: bash
       working-directory: android-kernel
       run: |
-        if [ "${{ inputs.arch }}" = "aarch64" ]; then
-          if [ -e build/build.sh ]; then
-            LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
-          else
-            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+        if [[ "${{ inputs.tag }}" == "android16-6.12" ]]; then
+          if [ "${{ inputs.arch }}" = "aarch64" ]; then
+            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist
+          elif [ "${{ inputs.arch }}" = "x86_64" ]; then
+            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_x86_64_dist
           fi
-        elif [ "${{ inputs.arch }}" = "x86_64" ]; then
-          if [ -e build/build.sh ]; then
-            LTO=thin BUILD_CONFIG=common/build.config.gki.x86_64 build/build.sh CC="/usr/bin/ccache clang"
-          else
-            tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_x86_64_dist -- --dist_dir=dist
+        else
+          if [ "${{ inputs.arch }}" = "aarch64" ]; then
+            if [ -e build/build.sh ]; then
+              LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh CC="/usr/bin/ccache clang"
+            else
+              tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_aarch64_dist -- --dist_dir=dist
+            fi
+          elif [ "${{ inputs.arch }}" = "x86_64" ]; then
+            if [ -e build/build.sh ]; then
+              LTO=thin BUILD_CONFIG=common/build.config.gki.x86_64 build/build.sh CC="/usr/bin/ccache clang"
+            else
+              tools/bazel run --disk_cache=/home/runner/.cache/bazel --config=fast --lto=thin //common:kernel_x86_64_dist -- --dist_dir=dist
+            fi
           fi
         fi
 
     - name: Prepare Artifacts
       shell: bash
       run: |
-        OUTDIR=android-kernel/out/${{ inputs.tag }}/dist
-        if [ ! -e $OUTDIR ]; then
-          OUTDIR=android-kernel/dist
+        if [[ "${{ inputs.tag }}" == "android16-6.12" ]]; then
+          if [ "${{ inputs.arch }}" = "aarch64" ]; then
+            OUTDIR=android-kernel/out/kernel_aarch64/dist
+          elif [ "${{ inputs.arch }}" = "x86_64" ]; then
+            OUTDIR=android-kernel/out/kernel_x86_64/dist
+          fi
+        else
+          OUTDIR=android-kernel/out/${{ inputs.tag }}/dist
+          if [ ! -e $OUTDIR ]; then
+            OUTDIR=android-kernel/dist
+          fi
         fi
         mkdir output
         ls -al $OUTDIR/
