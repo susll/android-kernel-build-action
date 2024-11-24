@@ -31,16 +31,16 @@ runs:
           echo "Invalid tag specified: ${{ inputs.tag }}. Must be one of: ${VALID_TAGS[@]}"
           exit 1
         fi
-        if [ ! -e "${{ inputs.module-path }}" ]; then
-          echo "Invalid module-path: ${{ inputs.module-path }}"
+        if [ ! -d "${{ inputs.module-path }}" ]; then
+          echo "Invalid module-path: Directory ${{ inputs.module-path }} does not exist."
           exit 2
         fi
-        if [ ! -e "${{ inputs.module-path }}/Makefile" ]; then
+        if [ ! -f "${{ inputs.module-path }}/Makefile" ]; then
           echo "${{ inputs.module-path }}/Makefile does not exist."
           exit 3
         fi
-        if [ ! -e "${{ inputs.module-path }}/${{ inputs.module-name }}.c" ]; then
-          echo "${{ inputs.module-path }}/${{ inputs.module-name }}.c does not exist."
+        if [ ! -f "${{ inputs.module-path }}/${{ inputs.module-name }}.c" ]; then
+          echo "Error: ${inputs.module-path}/${inputs.module-name}.c does not exist."
           exit 4
         fi
 
@@ -82,7 +82,7 @@ runs:
         GKI_ROOT=$GITHUB_WORKSPACE/android-kernel
         echo "[+] GKI_ROOT: $GKI_ROOT"
         echo "[+] Copy driver to $GKI_ROOT/common/drivers"
-        cp -rf $GITHUB_WORKSPACE/${{ inputs.module-path }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        ln -sf $GITHUB_WORKSPACE/${{ inputs.module-path }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
         echo "[+] Add driver to Makefile"
         DRIVER_MAKEFILE=$GKI_ROOT/common/drivers/Makefile
         DRIVER_KCONFIG=$GKI_ROOT/common/drivers/Kconfig

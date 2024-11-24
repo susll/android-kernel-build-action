@@ -26,7 +26,7 @@ jobs:
           uses: actions/checkout@v4
   
         - name: Run GKI Kernel Build Action
-          uses: feicong/android-kernel-build-action@main
+          uses: ./
           with:
             tag: ${{ matrix.tag }}
             arch: ${{ matrix.arch }}
