@@ -78,9 +78,8 @@ runs:
     - name: Setup Kernel Module
       shell: bash
       run: |
-        cd $GITHUB_WORKSPACE/android-kernel
         echo "[+] Kernel Module setup"
-        GKI_ROOT=$(pwd)
+        GKI_ROOT=$GITHUB_WORKSPACE/android-kernel
         echo "[+] GKI_ROOT: $GKI_ROOT"
         echo "[+] Copy driver to $GKI_ROOT/common/drivers"
         cp -rf $GITHUB_WORKSPACE/${{ inputs.module-path }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
