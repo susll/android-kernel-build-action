@@ -1,6 +1,8 @@
 # Android Kernel Build Action
 
-This GitHub Action is designed to automate the building of Android kernel modules out of the kernel source. It supports both aarch64 and x86_64 architectures, and can build kernels for different Android versions (GKI 2.0/3.0).
+This GitHub Action is designed to automate the building of Android kernel modules out of the kernel source. It supports both aarch64 and x86_64 architectures, and can build kernels for different Android versions (GKI 2.0).
+
+[https://source.android.com/docs/core/architecture/kernel/gki-release-builds](https://source.android.com/docs/core/architecture/kernel/gki-release-builds)
 
 ## Overview
 
@@ -56,52 +58,50 @@ The Android Kernel Build Action allows users to easily build kernels for Android
 
     - Required: true
 
-## Usage Example
+## Usage
 
-Here is a sample workflow file that uses this action to build an Android kernel for different versions and architectures.
+Here is a workflow that uses this action to build an Android kernel module for different versions and architectures.
 
 ### .github/workflows/ci.yml
 
-```
-name: Android Kernel CI
+```bash
+name: GKI Kernel Module Build
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-env:
-  JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64/
+  workflow_dispatch:
 
 jobs:
-  kernel-build:
-    runs-on: ubuntu-latest
+  build:
+    name: GKI Kernel Module Build
+    runs-on: ubuntu-22.04
+    needs: upload-artifact
     strategy:
       matrix:
-        arch: ["aarch64", "x86_64"]
-        tag: [
-          "android12-5.10",
-          "android13-5.10",
-          "android13-5.15",
-          "android14-5.15",
-          "android14-6.1",
-          "android15-6.6",
-          "android16-6.12",
-        ]
-    name: Build Android Kernel (${{ matrix.arch }} - ${{ matrix.tag }})
+        tag:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
+        arch:
+          - aarch64
+          - x86_64
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Upload LKM Source Code
-        uses: actions/upload-artifact@v4
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          name: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
-          path: .github/hello-ko
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Run GKI Kernel Build Action
         uses: ./
@@ -109,9 +109,30 @@ jobs:
           arch: ${{ matrix.arch }}
           tag: ${{ matrix.tag }}
           module-name: hello-ko
-          module-path: hello-ko-${{ matrix.tag }}-${{ matrix.arch }}
+          module-path: hello-ko
+
+  upload-artifact:
+    name: Upload LKM Source Code
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Upload LKM Source Code
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-ko
+          path: .github/hello-ko
 ```
 
 ### Outputs
 
 The action will upload the compiled kernel and module ko file.
+
+## License
+
+[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html).
+
+## Credits
+
+[https://github.com/tiann/KernelSU](https://github.com/tiann/KernelSU)
