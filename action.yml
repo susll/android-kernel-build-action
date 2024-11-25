@@ -24,7 +24,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download
+    - name: Download LKM Source Code
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.module-path }}
@@ -42,7 +42,7 @@ runs:
           echo "Invalid module-name: Directory ${{ inputs.module-name }} does not exist."
           exit 2
         fi
-        ls -l ${{ inputs.module-name }}
+        tree -f .
         if [ ! -f "${{ inputs.module-name }}/Makefile" ]; then
           echo "${{ inputs.module-name }}/Makefile does not exist."
           exit 3
@@ -52,16 +52,6 @@ runs:
           exit 4
         fi
 
-    - name: Maximize build space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 8192
-        temp-reserve-mb: 2048
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
-    
     - name: Install Build Tools
       uses: awalsh128/cache-apt-pkgs-action@v1
       with:
@@ -82,15 +72,19 @@ runs:
       with:
         path: ~/.ccache-${{ inputs.tag }}
         key: gki-kernel-${{ inputs.tag }}-cache
+        max-size: 2G
 
     - name: Setup Kernel Module
       shell: bash
       run: |
+        tree -f ${{ inputs.module-name }}
+
         echo "[+] Kernel Module setup"
         GKI_ROOT=$GITHUB_WORKSPACE/android-kernel
         echo "[+] GKI_ROOT: $GKI_ROOT"
         echo "[+] Copy driver to $GKI_ROOT/common/drivers"
-        ln -sf $GITHUB_WORKSPACE/${{ inputs.module-name }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        mv ${{ inputs.module-name }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        
         echo "[+] Add driver to Makefile"
         DRIVER_MAKEFILE=$GKI_ROOT/common/drivers/Makefile
         DRIVER_KCONFIG=$GKI_ROOT/common/drivers/Kconfig
@@ -111,17 +105,19 @@ runs:
         sudo apt-get install llvm-15 -y
         ast-grep -U -p '$$$ check_exports($$$) {$$$}' -r '' common/scripts/mod/modpost.c
         ast-grep -U -p 'check_exports($$$);' -r '' common/scripts/mod/modpost.c
-        echo "drivers/${{ inputs.module-name }}/${{ inputs.module-name }}.ko" >> common/android/gki_aarch64_modules
+        if [ -f common/android/gki_aarch64_modules ]; then
+          echo "drivers/${{ inputs.module-name }}/${{ inputs.module-name }}.ko" >> common/android/gki_aarch64_modules
+        fi
 
         # bazel build, android14-5.15, android14-6.1 use bazel
-        if [ ! -e build/build.sh ]; then
+        if [ ! -f build/build.sh ]; then
           sed -i 's/needs unknown symbol/Dont abort when unknown symbol/g' build/kernel/*.sh || echo "No unknown symbol scripts found"
-          if [ -e common/modules.bzl ]; then
+          if [ -f common/modules.bzl ]; then
             sed -i "s/_COMMON_GKI_MODULES_LIST = \[/_COMMON_GKI_MODULES_LIST = \[ \"drivers\/${{ inputs.module-name }}\/${{ inputs.module-name }}.ko\",/g" common/modules.bzl
           fi
         else
           TARGET_FILE="build/kernel/build.sh"
-          if [ ! -e "$TARGET_FILE" ]; then
+          if [ ! -f "$TARGET_FILE" ]; then
             TARGET_FILE="build/build.sh"
           fi
           sed -i 's/needs unknown symbol/Dont abort when unknown symbol/g' $TARGET_FILE || echo "No unknown symbol in $TARGET_FILE"
